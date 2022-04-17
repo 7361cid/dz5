@@ -5,7 +5,7 @@ from httpd import HTTPserver
 
 
 def runserver():
-    server = HTTPserver()
+    server = HTTPserver(root="DOCUMENT_ROOT")
     server.run()
 
 
