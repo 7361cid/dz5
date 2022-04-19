@@ -2,6 +2,8 @@ import socket
 import logging
 import threading
 import queue
+import time
+import random
 
 from optparse import OptionParser
 
@@ -13,13 +15,15 @@ class WorkThread(threading.Thread):
         self.daemon = True
 
     def run(self):
-        print("WorkThread run")
-        print(f"WorkThread {list(self.work_queue.queue)}")
         while True:
-            func, args = self.work_queue.get()
-            print(f"func {func} args {args}")
-            func(*args)
-            self.work_queue.task_done()
+            time.sleep(random.randint(1, 10))  # джитер
+            if self.work_queue.empty():
+                continue
+            else:
+                func, args = self.work_queue.get()   #block = False
+   #             print(f"func run {func} args {args}  args[0] {args[0]}")
+                func(*args)
+                self.work_queue.task_done()
 
 
 class ThreadPoolManger:
@@ -30,12 +34,11 @@ class ThreadPoolManger:
             print("ThreadPoolManger")
             thread = WorkThread(self.work_queue)
             thread.start()
-            thread.join()
+ #           thread.join()     # Возможная причина блокировки
 
     def add_work(self, func, *args):
-        print(f"add_work {list(self.work_queue.queue)}")
         self.work_queue.put((func, args))
-        print(f"add_work {list(self.work_queue.queue)}")
+     #   print(f"add_work {list(self.work_queue.queue)}")
 
 class HTTPserver:
     def __init__(self, root, host='0.0.0.0', port=8000, workers=2):
@@ -59,9 +62,9 @@ class HTTPserver:
     def run(self):
         print("HTTPserver run")
         client_connection, client_address = self.server_socket.accept()
-        thread_pool = ThreadPoolManger(self.workers)
-        print("HTTPserver run2")  #  BLOCKING??????????????
+        thread_pool = ThreadPoolManger(self.workers)  #  BLOCKING??????????????
         while True:
+            time.sleep(1)
             print("HTTPserver run3")
             thread_pool.add_work(self.send_answer, *(client_connection, client_address))
 
