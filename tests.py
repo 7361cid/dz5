@@ -22,6 +22,11 @@ class TestSuite(unittest.TestCase):
         print(response)
         print(response.text)
 
+    def test_get_file(self):
+        response = requests.get('http://localhost:8000/file.html')
+        print(response)
+        print(response.text)
+
 
 if __name__ == "__main__":
     unittest.main()

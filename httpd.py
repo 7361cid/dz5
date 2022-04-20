@@ -20,8 +20,7 @@ class WorkThread(threading.Thread):
             if self.work_queue.empty():
                 continue
             else:
-                func, args = self.work_queue.get()   #block = False
-   #             print(f"func run {func} args {args}  args[0] {args[0]}")
+                func, args = self.work_queue.get()
                 func(*args)
                 self.work_queue.task_done()
 
@@ -38,7 +37,7 @@ class ThreadPoolManger:
 
     def add_work(self, func, *args):
         self.work_queue.put((func, args))
-     #   print(f"add_work {list(self.work_queue.queue)}")
+
 
 class HTTPserver:
     def __init__(self, root, host='0.0.0.0', port=8000, workers=2):
@@ -60,17 +59,30 @@ class HTTPserver:
         client_connection.close()
 
     def run(self):
-        print("HTTPserver run")
         client_connection, client_address = self.server_socket.accept()
         thread_pool = ThreadPoolManger(self.workers)  #  BLOCKING??????????????
         while True:
             time.sleep(1)
-            print("HTTPserver run3")
             thread_pool.add_work(self.send_answer, *(client_connection, client_address))
 
-
     def request_processing(self, request):
-        return 'HTTP/1.0 200 OK\n\nHello World'
+        print(f"request {request} ")
+        if request.startswith("GET"):
+            req_lines = request.split('\n')
+            get_first_arg = req_lines[0].split()[1]
+            if get_first_arg == r"/":
+                return 'HTTP/1.0 200 OK\n\nHello World'
+            else:
+                if get_first_arg.startswith(r"/"):
+                    file_path = self.root + get_first_arg
+                    with open(file_path, 'r') as f:
+                        return f'HTTP/1.0 200 OK\n\n{f.read()}'
+
+            return 'HTTP/1.0 200 OK\n\nHello World'
+        elif request.startswith("HEAD"):
+            return 'HTTP/1.0 200 OK\n\nHello World'
+        else:
+            return 'HTTP/1.0 405 Method Not Allowed'
 
 
 if __name__ == "__main__":
