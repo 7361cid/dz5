@@ -8,8 +8,9 @@ def runserver():
     server = HTTPserver(root="DOCUMENT_ROOT")
     server.run()
 
+
 # !!!! Мб нужны пау3ы между тестами
-class TestSuite(unittest.TestCase):
+class RequestTests(unittest.TestCase):
     def setUp(self):
         self.process = Process(target=runserver)
         self.process.start()
@@ -41,6 +42,20 @@ class TestSuite(unittest.TestCase):
         response = requests.get('http://localhost:8000/private_dir/')
         print(response)
         print(f"FORbidden \n {response.text}")
+
+
+class LoadTest(unittest.TestCase):
+    def setUp(self):
+        self.process = Process(target=runserver)
+        self.process.start()
+
+    def tearDown(self) -> None:
+        self.process.terminate()
+
+    def test_overload(self):
+        for i in range(100):
+            response = requests.get('http://localhost:8000')
+
 
 if __name__ == "__main__":
     unittest.main()

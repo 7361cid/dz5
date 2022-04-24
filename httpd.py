@@ -23,7 +23,9 @@ class WorkThread(threading.Thread):
             else:
                 func, args = self.work_queue.get()
                 func(*args)
+                print(f"Queue {self.work_queue.queue}")
                 self.work_queue.task_done()
+                print(f"Queue2 {self.work_queue.queue}")
 
 
 class ThreadPoolManger:
@@ -53,15 +55,16 @@ class HTTPserver:
 
     def send_answer(self, client_connection, client_address):
         logging.info('Accept new connection from %s:%s...' % client_address)
-        request = client_connection.recv(1024).decode()
-        response = self.request_processing(request)
-        client_connection.sendall(response.encode())
-        client_connection.close()
+        if type(client_connection) == socket.socket and "fd=-1" not in str(client_connection):
+            request = client_connection.recv(1024).decode()
+            response = self.request_processing(request)
+            client_connection.sendall(response.encode())
+            client_connection.close()
 
     def run(self):
-        client_connection, client_address = self.server_socket.accept()
         thread_pool = ThreadPoolManger(self.workers)
         while True:
+            client_connection, client_address = self.server_socket.accept()
             time.sleep(1)
             thread_pool.add_work(self.send_answer, *(client_connection, client_address))
 
