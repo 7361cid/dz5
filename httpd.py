@@ -23,9 +23,7 @@ class WorkThread(threading.Thread):
             else:
                 func, args = self.work_queue.get()
                 func(*args)
-                print(f"Queue {self.work_queue.queue}")
                 self.work_queue.task_done()
-                print(f"Queue2 {self.work_queue.queue}")
 
 
 class ThreadPoolManger:
@@ -33,7 +31,6 @@ class ThreadPoolManger:
         self.thread_number = thread_number
         self.work_queue = queue.Queue()
         for i in range(self.thread_number):
-            print("ThreadPoolManger")
             thread = WorkThread(self.work_queue)
             thread.start()
 
@@ -79,33 +76,51 @@ class HTTPserver:
 
             if get_first_arg.startswith(r"/"):
                 if get_first_arg.startswith(r"/private_dir"):
-                    return 'HTTP/1.0 403 Forbidden'
+                    return self.format_response(code="403 Forbidden")
                 file_path = self.root + get_first_arg
                 try:
                     if file_path.endswith(r"/"):
                         file_path += "index.html"
                     with open(file_path, 'r') as f:
-                        return f'HTTP/1.0 200 OK\n\n{f.read()}'
+                        file_data = f.read()
+                        filename = file_path.split(r"/")[-1]
+                        return f'{self.format_response(code="200 OK", filename=filename, file_data=file_data)}'
                 except FileNotFoundError:
-                    return 'HTTP/1.0 404 File Not Found'
+                    return self.format_response(code="404 File Not Found")
             else:
                 return 'HTTP/1.0 404 File Not Found'
         elif request.startswith("HEAD"):
             return 'HTTP/1.0 200 OK\n\nHello World'
         else:
-            return 'HTTP/1.0 405 Method Not Allowed'
+            return self.format_response(code="405 Method Not Allowed")
 
     @staticmethod
-    def format_response(code, filename, file_date):
+    def format_response(code, filename="", file_data=""):
         """
         add headers Date, Server, Content-Length, Content-Type, Connection
         """
         response = f'HTTP/1.0 {code} \n'
         response += f"Date:{datetime.now(timezone.utc)}"
         response += "Server: DZ5\n"
+        response += f"Content-Length: {len(file_data)}\n"
         if filename.endswith(".html"):
             response += "Content - Type: text/html; charset=UTF-8"
+        elif filename.endswith(".css"):
+            response += "Content - Type: type=text/css; charset=UTF-8"
+        elif filename.endswith(".js"):
+            response += "Content - Type: type=text/javascript; charset=UTF-8"
+        elif filename.endswith(".js"):
+            response += "Content - Type: type=text/javascript"
+        elif filename.endswith(".jpg") or filename.endswith(".jpeg"):
+            response += "Content - Type: type=image/jpeg"
+        elif filename.endswith(".png"):
+            response += "Content - Type: type=image/png"
+        elif filename.endswith(".gif"):
+            response += "Content - Type: type=image/gif"
+        elif filename.endswith(".swf"):
+            response += "Content - Type: application/x-shockwave-flash"
         response += "Connection: close\n"
+        response += file_data
         return response
 
 

@@ -44,18 +44,5 @@ class RequestTests(unittest.TestCase):
         print(f"FORbidden \n {response.text}")
 
 
-class LoadTest(unittest.TestCase):
-    def setUp(self):
-        self.process = Process(target=runserver)
-        self.process.start()
-
-    def tearDown(self) -> None:
-        self.process.terminate()
-
-    def test_overload(self):
-        for i in range(100):
-            response = requests.get('http://localhost:8000')
-
-
 if __name__ == "__main__":
     unittest.main()
