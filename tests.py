@@ -19,29 +19,12 @@ class RequestTests(unittest.TestCase):
         self.process.terminate()
 
     def test_basic_answer(self):
-        response = requests.get('http://localhost:8000')
-        print(response)
-        print(response.text)
+        response = requests.get('http://localhost:8080/httptest/dir2/%70%61%67%65%2e%68%74%6d%6c')
+        print(f"response сщву {response}")
+        print(f"response headers {response.headers}")
+        print(f"response content {response.content}")
 
-    def test_get_file(self):
-        response = requests.get('http://localhost:8000/file.html')
-        print(response)
-        print(response.text)
 
-    def test_get_bad_file(self):
-        response = requests.get('http://localhost:8000/bad_file.html')
-        print(response)
-        print(response.text)
-
-    def test_get_dir_index(self):
-        response = requests.get('http://localhost:8000/dir/')
-        print(response)
-        print(f"DIR \n {response.text}")
-
-    def test_forbiden_request(self):
-        response = requests.get('http://localhost:8000/private_dir/')
-        print(response)
-        print(f"FORbidden \n {response.text}")
 
 
 if __name__ == "__main__":

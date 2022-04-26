@@ -39,7 +39,7 @@ class ThreadPoolManger:
 
 
 class HTTPserver:
-    def __init__(self, root, host='0.0.0.0', port=8000, workers=2):
+    def __init__(self, root, host='0.0.0.0', port=8080, workers=2):
         self.host = host
         self.port = port
         self.workers = workers
@@ -55,7 +55,7 @@ class HTTPserver:
         if type(client_connection) == socket.socket and "fd=-1" not in str(client_connection):
             request = client_connection.recv(1024).decode()
             response = self.request_processing(request)
-            client_connection.sendall(response.encode())
+            client_connection.sendall(response.encode('utf-8'))
             client_connection.close()
 
     def run(self):
@@ -70,7 +70,7 @@ class HTTPserver:
         !!!!!! Нужна поддержка регулярок
         """
         print(f"request {request} ")
-        if request.startswith("GET"):
+        if request.startswith("GET") or request.startswith("HEAD"):
             req_lines = request.split('\n')
             get_first_arg = req_lines[0].split()[1]
 
@@ -78,19 +78,26 @@ class HTTPserver:
                 if get_first_arg.startswith(r"/private_dir"):
                     return self.format_response(code="403 Forbidden")
                 file_path = self.root + get_first_arg
+                if '?' in file_path:
+                    file_path = file_path.split('?')[0]
                 try:
                     if file_path.endswith(r"/"):
                         file_path += "index.html"
-                    with open(file_path, 'r') as f:
-                        file_data = f.read()
-                        filename = file_path.split(r"/")[-1]
-                        return f'{self.format_response(code="200 OK", filename=filename, file_data=file_data)}'
+                    try:
+                        with open(file_path, 'r') as f:
+                            file_data = f.read()
+                            filename = file_path.split(r"/")[-1]
+                            print(f"LOG filename {filename}")
+                            return f'{self.format_response(code="200 OK", filename=filename, file_data=file_data)}'
+                    except UnicodeDecodeError:
+                        with open(file_path, 'rb') as f:
+                            file_data = f.read()
+                            filename = file_path.split(r"/")[-1]
+                            return f'{self.format_response(code="200 OK", filename=filename, file_data=str(file_data))}'
                 except FileNotFoundError:
                     return self.format_response(code="404 File Not Found")
             else:
                 return 'HTTP/1.0 404 File Not Found'
-        elif request.startswith("HEAD"):
-            return 'HTTP/1.0 200 OK\n\nHello World'
         else:
             return self.format_response(code="405 Method Not Allowed")
 
@@ -100,27 +107,27 @@ class HTTPserver:
         add headers Date, Server, Content-Length, Content-Type, Connection
         """
         response = f'HTTP/1.0 {code} \n'
-        response += f"Date:{datetime.now(timezone.utc)}"
+        response += f"Date:{datetime.now(timezone.utc)}\n"
         response += "Server: DZ5\n"
-        response += f"Content-Length: {len(file_data)}\n"
+        response += f"Content-Length: {len(file_data.encode('utf-8'))}\n"
+        print(f"LOG2 {filename}  {filename.endswith('.html')}")
         if filename.endswith(".html"):
-            response += "Content - Type: text/html; charset=UTF-8"
+            response += "Content-Type: text/html\n"
         elif filename.endswith(".css"):
-            response += "Content - Type: type=text/css; charset=UTF-8"
+            response += "Content-Type: text/css\n"
         elif filename.endswith(".js"):
-            response += "Content - Type: type=text/javascript; charset=UTF-8"
-        elif filename.endswith(".js"):
-            response += "Content - Type: type=text/javascript"
+            response += "Content-Type: text/javascript\n"
         elif filename.endswith(".jpg") or filename.endswith(".jpeg"):
-            response += "Content - Type: type=image/jpeg"
+            response += "Content-Type: image/jpeg\n"
         elif filename.endswith(".png"):
-            response += "Content - Type: type=image/png"
+            response += "Content-Type: image/png\n"
         elif filename.endswith(".gif"):
-            response += "Content - Type: type=image/gif"
+            response += "Content-Type: image/gif\n"
         elif filename.endswith(".swf"):
-            response += "Content - Type: application/x-shockwave-flash"
-        response += "Connection: close\n"
+            response += "Content-Type: application/x-shockwave-flash\n"
+        response += "Connection: close\n\n"
         response += file_data
+        print(f"LOG3 {response}")
         return response
 
 
