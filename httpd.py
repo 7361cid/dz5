@@ -17,7 +17,7 @@ class WorkThread(threading.Thread):
 
     def run(self):
         while True:
-            time.sleep(random.randint(1, 10))  # джитер
+            time.sleep(random.randint(1, 10)/100)  # джитер
             if self.work_queue.empty():
                 continue
             else:
@@ -55,7 +55,9 @@ class HTTPserver:
         if type(client_connection) == socket.socket and "fd=-1" not in str(client_connection):
             request = client_connection.recv(1024).decode()
             response = self.request_processing(request)
-            client_connection.sendall(response.encode('utf-8'))
+            response = response.encode('utf-8').replace(br"\n", br"\r\n")
+            print(f"LOGresponse {response}")
+            client_connection.send(response)
             client_connection.close()
 
     def run(self):
@@ -127,13 +129,13 @@ class HTTPserver:
             response += "Content-Type: application/x-shockwave-flash\n"
         response += "Connection: close\n\n"
         response += file_data
-        print(f"LOG3 {response}")
+        print(f'LOG3 {response}')
         return response
 
 
 if __name__ == "__main__":
     op = OptionParser()
-    op.add_option("-p", "--port", action="store", type=int, default=8000)
+    op.add_option("-p", "--port", action="store", type=int, default=8080)
     op.add_option("-l", "--log", action="store", default=None)
     op.add_option("-w", "--workers", action="store", type=int, default=2)
     op.add_option("-r", "--root", action="store", default=None)

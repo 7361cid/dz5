@@ -19,7 +19,7 @@ class RequestTests(unittest.TestCase):
         self.process.terminate()
 
     def test_basic_answer(self):
-        response = requests.get('http://localhost:8080/httptest/dir2/%70%61%67%65%2e%68%74%6d%6c')
+        response = requests.get('http://localhost:8080/httptest/dir2/page.html')
         print(f"response сщву {response}")
         print(f"response headers {response.headers}")
         print(f"response content {response.content}")
