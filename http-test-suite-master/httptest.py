@@ -195,7 +195,6 @@ class HttpServer(unittest.TestCase):
         s.close()
 
         if v3:
-            print(f"LOG data {data}")
             self.assertTrue(data.find(b"\r\n\r\n") > 0, "no empty line with CRLF found")
             (head, body) = re.split(b"\r\n\r\n", data, 1);
             headers = head.split(b"\r\n");
@@ -208,6 +207,7 @@ class HttpServer(unittest.TestCase):
 
         statusline = headers.pop(0)
         if v3:
+            print(f"status line {statusline}")
             (proto, code, status) = statusline.split(b" ");
         else:
             (proto, code, status) = statusline.split(" ");
