@@ -7,20 +7,17 @@ file_path = os.path.dirname(os.path.abspath(__file__))
 
 
 def runserver():
-    os.chdir(file_path)
-    os.system(f'python httpd.py -r {file_path}/http-test-suite-master')
+    os.system(f'python httpd.py -r {file_path}\http-test-suite-master')
 
 
 def runtests():
-    os.chdir(file_path)
-    os.system(f'python http-test-suite-master\httptest.py')
+    os.system(f'python {file_path}\http-test-suite-master\httptest.py')
 
 
 class RequestTests(unittest.TestCase):
     def setUp(self):
-        print(f"file_path {file_path}")
-        self.process = subprocess.Popen(f'python httpd.py -r {file_path}/http-test-suite-master'.split())
-        self.process2 = subprocess.Popen(f'python http-test-suite-master\httptest.py'.split(), stdout=subprocess.PIPE)
+        self.process = subprocess.Popen(f'python httpd.py -r {file_path}\http-test-suite-master'.split())
+        self.process2 = subprocess.Popen(f'python {file_path}\http-test-suite-master\httptest.py'.split(), stdout=subprocess.PIPE)
 
     def tearDown(self) -> None:
         self.process.terminate()
