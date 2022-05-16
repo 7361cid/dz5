@@ -48,13 +48,13 @@ class HTTPserver:
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind((self.host, self.port))
-        self.server_socket.listen(self.workers)
+        self.server_socket.listen()
         self.root = root
         logging.info('Listening on port %s ...' % self.port)
 
     def send_answer(self, client_connection, client_address):
         logging.info('Accept new connection from %s:%s...' % client_address)
-        if type(client_connection) == socket.socket and "fd=-1" not in str(client_connection):
+        if isinstance(client_connection, socket.socket) and "fd=-1" not in str(client_connection):
             request = urllib.parse.unquote(client_connection.recv(1024).decode('utf-8'))
             response = self.request_processing(request)
             if response:
