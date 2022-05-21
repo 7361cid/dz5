@@ -6,6 +6,7 @@ import time
 import random
 import urllib.parse
 
+from mimetypes import MimeTypes
 from optparse import OptionParser
 from datetime import datetime, timezone
 
@@ -54,8 +55,16 @@ class HTTPserver:
 
     def send_answer(self, client_connection, client_address):
         logging.info('Accept new connection from %s:%s...' % client_address)
-        if isinstance(client_connection, socket.socket) and "fd=-1" not in str(client_connection):
-            request = urllib.parse.unquote(client_connection.recv(1024).decode('utf-8'))
+        if isinstance(client_connection, socket.socket):
+            data = b''
+            while True:
+                new_data = client_connection.recv(1024)
+                if not new_data:
+                    break
+                data += new_data
+                if b'\r\n\r\n' in data:
+                    break
+            request = urllib.parse.unquote(data.decode('utf-8'))
             response = self.request_processing(request)
             if response:
                 if len(response) > 1024:  # Большие данные передаются по частям
@@ -81,16 +90,20 @@ class HTTPserver:
             get_first_arg = req_lines[0].split(',')[0].split(' ', 1)[1].split(' HTTP')[0]
             if get_first_arg.startswith(r"/"):
                 file_path = self.root + get_first_arg
+                if r"/../" in file_path:
+                    return self.format_response(code="403 Forbidden")
+
                 if '?' in file_path:
                     file_path = file_path.split('?')[0]
                 try:
                     if file_path.endswith(r"/"):
                         file_path += "index.html"
+                    if request.startswith("HEAD"):
+                        return self.format_response(code="200 OK", head=True)
                     with open(file_path, 'rb') as f:
                         file_data = f.read()
                         filename = file_path.split(r"/")[-1]
-                        return self.format_response(code="200 OK", filename=filename,
-                                                    file_data=file_data, head=request.startswith("HEAD"))
+                        return self.format_response(code="200 OK", filename=filename, file_data=file_data)
                 except FileNotFoundError:
                     return self.format_response(code="404 File Not Found")
             else:
@@ -107,20 +120,13 @@ class HTTPserver:
         headers += f"Date:{datetime.now(timezone.utc)}".encode("utf-8") + b"\r\n"
         headers += "Server: DZ5".encode("utf-8") + b"\r\n"
         headers += f"Content-Length: {len(file_data)}".encode("utf-8") + b"\r\n"
-        if filename.endswith(".html"):
-            headers += "Content-Type: text/html".encode("utf-8") + b"\r\n"
-        elif filename.endswith(".css"):
-            headers += "Content-Type: text/css".encode("utf-8") + b"\r\n"
-        elif filename.endswith(".js"):
-            headers += "Content-Type: text/javascript".encode("utf-8") + b"\r\n"
-        elif filename.endswith(".jpg") or filename.endswith(".jpeg"):
-            headers += "Content-Type: image/jpeg".encode("utf-8") + b"\r\n"
-        elif filename.endswith(".png"):
-            headers += "Content-Type: image/png".encode("utf-8") + b"\r\n"
-        elif filename.endswith(".gif"):
-            headers += "Content-Type: image/gif".encode("utf-8") + b"\r\n"
-        elif filename.endswith(".swf"):
-            headers += "Content-Type: application/x-shockwave-flash".encode("utf-8") + b"\r\n"
+        mime = MimeTypes()
+        mime_type = mime.guess_type(filename)
+        if filename:
+            if filename.endswith(".js"):  # mime type не верно определяется для js
+                headers += "Content-Type: text/javascript".encode("utf-8") + b"\r\n"
+            else:
+                headers += f"Content-Type: {mime_type[0]}".encode("utf-8") + b"\r\n"
         headers += "Connection: close\n\n".encode("utf-8")
         if head:
             response = headers + b"\r\n\r\n"
