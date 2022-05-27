@@ -91,7 +91,7 @@ def request_processing(root, request):
                     file_data = f.read()
                     filename = file_path.split(r"/")[-1]
                     return format_response(code="200 OK", filename=filename, file_data=file_data)
-            except FileNotFoundError:
+            except (FileNotFoundError, NotADirectoryError):
                 return format_response(code="404 File Not Found")
         else:
             return format_response(code="404 File Not Found")
