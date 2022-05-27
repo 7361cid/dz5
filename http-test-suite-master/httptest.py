@@ -247,8 +247,8 @@ class HttpServer(unittest.TestCase):
         length = r.getheader("Content-Length")
         ctype = r.getheader("Content-Type")
         self.assertEqual(int(r.status), 200)
-       # self.assertEqual(int(length), 98620)
-       # self.assertEqual(len(data), 98620)
+        self.assertEqual(int(length), 98620)
+        self.assertEqual(len(data), 98620)
         self.assertEqual(ctype, "text/css")
 
     def test_filetype_js(self):
@@ -307,8 +307,8 @@ class HttpServer(unittest.TestCase):
         length = r.getheader("Content-Length")
         ctype = r.getheader("Content-Type")
         self.assertEqual(int(r.status), 200)
-     #   self.assertEqual(int(length), 1747)
-     #   self.assertEqual(len(data), 1747)
+        self.assertEqual(int(length), 1747)
+        self.assertEqual(len(data), 1747)
         self.assertEqual(ctype, "image/gif")
 
     def test_filetype_swf(self):

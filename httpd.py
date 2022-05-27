@@ -1,3 +1,4 @@
+import os
 import socket
 import logging
 import threading
@@ -11,7 +12,6 @@ from optparse import OptionParser
 from datetime import datetime, timezone
 
 
-
 class WorkThread(threading.Thread):
     def __init__(self, work_queue):
         super().__init__()
@@ -20,7 +20,7 @@ class WorkThread(threading.Thread):
 
     def run(self):
         while True:
-            time.sleep(random.randint(1, 10)/100)  # джитер
+            time.sleep(random.randint(1, 10) / 100)  # джитер
             if self.work_queue.empty():
                 continue
             else:
@@ -41,6 +41,89 @@ class ThreadPoolManger:
         self.work_queue.put((func, args))
 
 
+def format_response(code, filename="", file_data=b"", head=False, content_length=0):
+    """
+    add headers Date, Server, Content-Length, Content-Type, Connection
+    """
+    headers = f'HTTP/1.0 {code}'.encode("utf-8") + b"\r\n"
+    headers += f"Date:{datetime.now(timezone.utc)}".encode("utf-8") + b"\r\n"
+    headers += "Server: DZ5".encode("utf-8") + b"\r\n"
+    if not head:
+        headers += f"Content-Length: {len(file_data)}".encode("utf-8") + b"\r\n"
+    else:
+        headers += f"Content-Length: {content_length}".encode("utf-8") + b"\r\n"
+    mime = MimeTypes()
+    mime_type = mime.guess_type(filename)
+    if filename:
+        if filename.endswith(".js"):  # mime type не верно определяется для js
+            headers += "Content-Type: text/javascript".encode("utf-8") + b"\r\n"
+        else:
+            headers += f"Content-Type: {mime_type[0]}".encode("utf-8") + b"\r\n"
+    headers += "Connection: close\n\n".encode("utf-8")
+    if head:
+        response = headers + b"\r\n\r\n"
+    else:
+        response = headers + file_data
+    return response
+
+
+def request_processing(root, request):
+    if request.startswith("GET") or request.startswith("HEAD"):
+        req_lines = request.split('\n')
+        get_first_arg = req_lines[0].split(',')[0].split(' ', 1)[1].split(' HTTP')[0]
+        if get_first_arg.startswith(r"/"):
+            file_path = root + get_first_arg
+            if r"/../" in file_path:
+                return format_response(code="403 Forbidden")
+
+            if '?' in file_path:
+                file_path = file_path.split('?')[0]
+            try:
+                if file_path.endswith(r"/"):
+                    file_path += "index.html"
+                if request.startswith("HEAD"):
+                    try:
+                        length = os.stat(f'{file_path}').st_size
+                        return format_response(code="200 OK", head=True, content_length=length)
+                    except FileNotFoundError:
+                        return format_response(code="404 File Not Found")
+                with open(file_path, 'rb') as f:
+                    file_data = f.read()
+                    filename = file_path.split(r"/")[-1]
+                    return format_response(code="200 OK", filename=filename, file_data=file_data)
+            except FileNotFoundError:
+                return format_response(code="404 File Not Found")
+        else:
+            return format_response(code="404 File Not Found")
+    else:
+        return format_response(code="405 Method Not Allowed")
+
+
+def send_answer(root, client_connection, client_address):
+    logging.info('Accept new connection from %s:%s...' % client_address)
+    if isinstance(client_connection, socket.socket):
+        data = b''
+        while True:
+            new_data = client_connection.recv(1024)
+            if not new_data:
+                break
+            data += new_data
+            if b'\r\n\r\n' in data:
+                break
+        request = urllib.parse.unquote(data.decode('utf-8'))
+        response = request_processing(root, request)
+        if response:
+            if len(response) > 1024:  # Большие данные передаются по частям
+                while len(response) > 1024:
+                    client_connection.send(response[0:1024])
+                    response = response[1024:]
+                if len(response):  # Если количество данных не кратно 1024 и после цикла что-то осталось
+                    client_connection.send(response)
+            else:
+                client_connection.send(response)
+        client_connection.close()
+
+
 class HTTPserver:
     def __init__(self, root, host='0.0.0.0', port=8080, workers=2):
         self.host = host
@@ -53,86 +136,12 @@ class HTTPserver:
         self.root = root
         logging.info('Listening on port %s ...' % self.port)
 
-    def send_answer(self, client_connection, client_address):
-        logging.info('Accept new connection from %s:%s...' % client_address)
-        if isinstance(client_connection, socket.socket):
-            data = b''
-            while True:
-                new_data = client_connection.recv(1024)
-                if not new_data:
-                    break
-                data += new_data
-                if b'\r\n\r\n' in data:
-                    break
-            request = urllib.parse.unquote(data.decode('utf-8'))
-            response = self.request_processing(request)
-            if response:
-                if len(response) > 1024:  # Большие данные передаются по частям
-                    while len(response) > 1024:
-                        client_connection.send(response[0:1024])
-                        response = response[1024:]
-                    if len(response):  # Если количество данных не кратно 1024 и после цикла что-то осталось
-                        client_connection.send(response)
-                else:
-                    client_connection.send(response)
-            client_connection.close()
-
     def run(self):
         thread_pool = ThreadPoolManger(self.workers)
         while True:
             client_connection, client_address = self.server_socket.accept()
             time.sleep(1)
-            thread_pool.add_work(self.send_answer, *(client_connection, client_address))
-
-    def request_processing(self, request):
-        if request.startswith("GET") or request.startswith("HEAD"):
-            req_lines = request.split('\n')
-            get_first_arg = req_lines[0].split(',')[0].split(' ', 1)[1].split(' HTTP')[0]
-            if get_first_arg.startswith(r"/"):
-                file_path = self.root + get_first_arg
-                if r"/../" in file_path:
-                    return self.format_response(code="403 Forbidden")
-
-                if '?' in file_path:
-                    file_path = file_path.split('?')[0]
-                try:
-                    if file_path.endswith(r"/"):
-                        file_path += "index.html"
-                    if request.startswith("HEAD"):
-                        return self.format_response(code="200 OK", head=True)
-                    with open(file_path, 'rb') as f:
-                        file_data = f.read()
-                        filename = file_path.split(r"/")[-1]
-                        return self.format_response(code="200 OK", filename=filename, file_data=file_data)
-                except FileNotFoundError:
-                    return self.format_response(code="404 File Not Found")
-            else:
-                return self.format_response(code="404 File Not Found")
-        else:
-            return self.format_response(code="405 Method Not Allowed")
-
-    @staticmethod
-    def format_response(code, filename="", file_data=b"", head=False):
-        """
-        add headers Date, Server, Content-Length, Content-Type, Connection
-        """
-        headers = f'HTTP/1.0 {code}'.encode("utf-8") + b"\r\n"
-        headers += f"Date:{datetime.now(timezone.utc)}".encode("utf-8") + b"\r\n"
-        headers += "Server: DZ5".encode("utf-8") + b"\r\n"
-        headers += f"Content-Length: {len(file_data)}".encode("utf-8") + b"\r\n"
-        mime = MimeTypes()
-        mime_type = mime.guess_type(filename)
-        if filename:
-            if filename.endswith(".js"):  # mime type не верно определяется для js
-                headers += "Content-Type: text/javascript".encode("utf-8") + b"\r\n"
-            else:
-                headers += f"Content-Type: {mime_type[0]}".encode("utf-8") + b"\r\n"
-        headers += "Connection: close\n\n".encode("utf-8")
-        if head:
-            response = headers + b"\r\n\r\n"
-        else:
-            response = headers + file_data
-        return response
+            thread_pool.add_work(send_answer, *(self.root, client_connection, client_address))
 
 
 if __name__ == "__main__":
