@@ -67,6 +67,30 @@ def format_response(code, filename="", file_data=b"", head=False, content_length
     return response
 
 
+def check_path(root, file_path):
+    abs_file_path = os.path.abspath(os.path.realpath(file_path))
+    for r, dirs, files in os.walk(root):
+        for filename in files:
+            if filename == abs_file_path:
+                return True
+    return False
+
+
+def format_response_for_head(file_path):
+    try:
+        length = os.stat(f'{file_path}').st_size
+        return format_response(code="200 OK", head=True, content_length=length)
+    except FileNotFoundError:
+        return format_response(code="404 File Not Found")
+
+
+def format_response_for_get(file_path):
+    with open(file_path, 'rb') as f:
+        file_data = f.read()
+        filename = file_path.split(r"/")[-1]
+        return format_response(code="200 OK", filename=filename, file_data=file_data)
+
+
 def request_processing(root, request):
     if request.startswith("GET") or request.startswith("HEAD"):
         req_lines = request.split('\n')
@@ -74,19 +98,15 @@ def request_processing(root, request):
         if get_first_arg.startswith(r"/"):
             file_path = root + get_first_arg
             if r"/../" in file_path:
-                return format_response(code="403 Forbidden")
-
+                if not check_path(root, file_path):
+                    return format_response(code="403 Forbidden")
             if '?' in file_path:
                 file_path = file_path.split('?')[0]
             try:
                 if file_path.endswith(r"/"):
                     file_path += "index.html"
                 if request.startswith("HEAD"):
-                    try:
-                        length = os.stat(f'{file_path}').st_size
-                        return format_response(code="200 OK", head=True, content_length=length)
-                    except FileNotFoundError:
-                        return format_response(code="404 File Not Found")
+                    format_response_for_head(file_path)
                 with open(file_path, 'rb') as f:
                     file_data = f.read()
                     filename = file_path.split(r"/")[-1]
