@@ -122,28 +122,33 @@ def request_processing(root, request):
         return format_response(code="405 Method Not Allowed")
 
 
-def send_answer(root, client_connection, client_address):
+def get_data(client_connection):
+    data = b''
+    while True:
+        new_data = client_connection.recv(1024)
+        if not new_data:
+            break
+        data += new_data
+        if b'\r\n\r\n' in data:
+            break
+    return data
+
+
+def request_answer(root, client_connection, client_address):
     logging.info('Accept new connection from %s:%s...' % client_address)
     if isinstance(client_connection, socket.socket):
-        data = b''
-        while True:
-            new_data = client_connection.recv(1024)
-            if not new_data:
-                break
-            data += new_data
-            if b'\r\n\r\n' in data:
-                break
+        data = get_data(client_connection)
         request = urllib.parse.unquote(data.decode('utf-8'))
         response = request_processing(root, request)
         if response:
             if len(response) > 1024:  # Большие данные передаются по частям
                 while len(response) > 1024:
-                    client_connection.send(response[0:1024])
+                    client_connection.sendall(response[0:1024])
                     response = response[1024:]
                 if len(response):  # Если количество данных не кратно 1024 и после цикла что-то осталось
-                    client_connection.send(response)
+                    client_connection.sendall(response)
             else:
-                client_connection.send(response)
+                client_connection.sendall(response)
         client_connection.close()
 
 
@@ -164,7 +169,7 @@ class HTTPserver:
         while True:
             client_connection, client_address = self.server_socket.accept()
             time.sleep(1)
-            thread_pool.add_work(send_answer, *(self.root, client_connection, client_address))
+            thread_pool.add_work(request_answer, *(self.root, client_connection, client_address))
 
 
 if __name__ == "__main__":
