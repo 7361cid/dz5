@@ -85,10 +85,13 @@ def format_response_for_head(file_path):
 
 
 def format_response_for_get(file_path):
-    with open(file_path, 'rb') as f:
-        file_data = f.read()
-        filename = file_path.split(r"/")[-1]
-        return format_response(code="200 OK", filename=filename, file_data=file_data)
+    try:
+        with open(file_path, 'rb') as f:
+            file_data = f.read()
+            filename = file_path.split(r"/")[-1]
+            return format_response(code="200 OK", filename=filename, file_data=file_data)
+    except (FileNotFoundError, NotADirectoryError, PermissionError, OSError) as exc:
+        return format_response(code="404 File Not Found")
 
 
 def request_processing(root, request):
@@ -102,14 +105,11 @@ def request_processing(root, request):
                     return format_response(code="403 Forbidden")
             if '?' in file_path:
                 file_path = file_path.split('?')[0]
-            try:
-                if file_path.endswith(r"/"):
-                    file_path += "index.html"
-                if request.startswith("HEAD"):
-                    return format_response_for_head(file_path)
-                return format_response_for_get(file_path)
-            except (FileNotFoundError, NotADirectoryError):
-                return format_response(code="404 File Not Found")
+            if file_path.endswith(r"/"):
+                file_path += "index.html"
+            if request.startswith("HEAD"):
+                return format_response_for_head(file_path)
+            return format_response_for_get(file_path)
         else:
             return format_response(code="404 File Not Found")
     else:
