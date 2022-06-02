@@ -68,6 +68,8 @@ def format_response(code, filename="", file_data=b"", head=False, content_length
 
 
 def check_path(root, file_path):
+    if r"/../" not in file_path:
+        return True
     abs_file_path = os.path.abspath(os.path.realpath(file_path))
     for r, dirs, files in os.walk(root):
         for filename in files:
@@ -94,19 +96,23 @@ def format_response_for_get(file_path):
         return format_response(code="404 File Not Found")
 
 
+def format_filepath(file_path):
+    if '?' in file_path:
+        file_path = file_path.split('?')[0]
+    if file_path.endswith(r"/"):
+        file_path += "index.html"
+    return file_path
+
+
 def request_processing(root, request):
     if request.startswith("GET") or request.startswith("HEAD"):
         req_lines = request.split('\n')
         get_first_arg = req_lines[0].split(',')[0].split(' ', 1)[1].split(' HTTP')[0]
         if get_first_arg.startswith(r"/"):
             file_path = root + get_first_arg
-            if r"/../" in file_path:
-                if not check_path(root, file_path):
-                    return format_response(code="403 Forbidden")
-            if '?' in file_path:
-                file_path = file_path.split('?')[0]
-            if file_path.endswith(r"/"):
-                file_path += "index.html"
+            if not check_path(root, file_path):
+                return format_response(code="403 Forbidden")
+            file_path = format_filepath(file_path)
             if request.startswith("HEAD"):
                 return format_response_for_head(file_path)
             return format_response_for_get(file_path)
