@@ -71,10 +71,8 @@ def check_path(root, file_path):
     if r"/../" not in file_path:
         return True
     abs_file_path = os.path.abspath(os.path.realpath(file_path))
-    for r, dirs, files in os.walk(root):
-        for filename in files:
-            if filename == abs_file_path:
-                return True
+    if root in abs_file_path:
+        return True
     return False
 
 
